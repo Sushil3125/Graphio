@@ -1,0 +1,56 @@
+<idea-plugin>
+  <id>com.sushil.codemap</id>
+  <name>Code Map</name>
+  <version>0.5.0</version>
+  <vendor>Sushil</vendor>
+  <idea-version since-build="253"/>
+
+  <description><![CDATA[
+    <p><b>Code Map</b>: a live, left-to-right call-flow explorer for Python projects, right inside PyCharm.</p>
+    <ul>
+      <li>The call graph is built from <b>PyCharm's own Python code model</b> (the same resolve and type inference as
+          navigation): calls, FastAPI <code>Depends</code>, instantiations, inheritance, overrides, callbacks, routers.
+          <b>No Python interpreter or extra process is needed</b>; nothing leaves your machine.</li>
+      <li>Entrypoints: HTTP / WebSocket routes (with router prefixes), Celery tasks, <code>__main__</code> blocks,
+          app factories, CLI commands and framework hooks.</li>
+      <li>Updates live as you edit (unsaved changes included); the first build shows progress and waits for indexing.</li>
+      <li>"Open Code Map" (Ctrl+Alt+Shift+K, Tools / View menu): the map in an editor tab (JCEF), or in your browser if
+          JCEF is unavailable. Ctrl+click a node to jump to the code.</li>
+      <li>"Show in Code Map" (Ctrl+Alt+Shift+M, editor / project view popup): focuses the graph on the function or
+          class at the caret.</li>
+      <li>Served by the IDE's built-in server at <code>http://127.0.0.1:&lt;port&gt;/codemap/</code> (localhost only).</li>
+      <li>Settings | Tools | Code Map: exclude globs, include test code.</li>
+    </ul>
+  ]]></description>
+
+  <change-notes><![CDATA[0.5.0: analysis moved into the plugin: the graph is built from PyCharm's Python code model (PSI, resolve, type inference) instead of a bundled Python process, so no Python interpreter is required and more calls resolve; live updates on edits, including unsaved ones; served by the IDE's built-in server under /codemap/ (no extra port); the map shows indexing/analysis progress itself; settings reduced to exclude globs and test code.<br>0.4.0: bundled mode — the plugin contains the codemap server and starts it automatically (finds Python 3.10+, random port, stops with the IDE); the tab opens immediately with a starting page and shows errors with Retry / Open Settings; new settings: server mode, Python interpreter, status, restart.<br>0.3.0: each project gets its own map (server analyses the open project's directory).<br>0.2.0: Code Map opens as an editor tab instead of a tool window.<br>0.1.0: initial version.]]></change-notes>
+
+  <depends>com.intellij.modules.platform</depends>
+  <depends>com.intellij.modules.python</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <httpRequestHandler implementation="com.sushil.codemap.CodeMapHttpHandler" order="first"/>
+    <appStarter id="codemap-export" implementation="com.sushil.codemap.export.ExportStarter"/>
+    <fileEditorProvider implementation="com.sushil.codemap.CodeMapEditorProvider"/>
+    <applicationConfigurable parentId="tools" id="com.sushil.codemap.settings" displayName="Code Map"
+                             instance="com.sushil.codemap.CodeMapConfigurable"/>
+  </extensions>
+
+  <actions>
+    <action id="com.sushil.codemap.OpenCodeMap" class="com.sushil.codemap.OpenCodeMapAction"
+            text="Open Code Map" description="Open the Code Map graph in an editor tab"
+            icon="com.sushil.codemap.CodeMapIcons.CODE_MAP">
+      <keyboard-shortcut keymap="$default" first-keystroke="control alt shift K"/>
+      <add-to-group group-id="ToolsMenu" anchor="last"/>
+      <add-to-group group-id="ViewMenu" anchor="last"/>
+    </action>
+    <action id="com.sushil.codemap.ShowInCodeMap" class="com.sushil.codemap.ShowInCodeMapAction"
+            text="Show in Code Map" description="Focus the codemap graph on the function/class at the caret"
+            icon="com.sushil.codemap.CodeMapIcons.CODE_MAP">
+      <keyboard-shortcut keymap="$default" first-keystroke="control alt shift M"/>
+      <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+      <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+      <add-to-group group-id="ToolsMenu" anchor="last"/>
+    </action>
+  </actions>
+</idea-plugin>

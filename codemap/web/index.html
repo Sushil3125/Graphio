@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>codemap</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="topbar">
+  <div class="brand"><span class="logo">◆</span> codemap <span id="project" class="project"></span></div>
+  <div class="nav">
+    <button id="btn-back" class="icon-btn" title="Back (Alt+←)" disabled>‹</button>
+    <button id="btn-fwd" class="icon-btn" title="Forward (Alt+→)" disabled>›</button>
+  </div>
+  <nav id="breadcrumb" class="breadcrumb"></nav>
+  <div class="spacer"></div>
+  <div class="controls">
+    <div class="stepper" title="How many levels of callers to show (left side)">
+      <span class="lbl">Callers</span>
+      <button data-step="in" data-d="-1">−</button><span id="in-depth" class="val">1</span><button data-step="in" data-d="1">+</button>
+    </div>
+    <div class="stepper" title="How many levels of callees to show (right side)">
+      <span class="lbl">Callees</span>
+      <button data-step="out" data-d="-1">−</button><span id="out-depth" class="val">2</span><button data-step="out" data-d="1">+</button>
+    </div>
+    <button id="btn-modview" class="tbtn" title="Collapse by module: high-level map of module dependencies">Modules view</button>
+    <button id="btn-path" class="tbtn" title="Find call paths between two nodes">Find path</button>
+    <div class="menu-wrap">
+      <button id="btn-view" class="tbtn" title="Edge kinds and filters">Filters ▾</button>
+      <div id="view-menu" class="menu hidden">
+        <div class="menu-title">Edge kinds</div>
+        <label><input type="checkbox" data-kind="calls" checked><span class="sw e-calls"></span> calls</label>
+        <label><input type="checkbox" data-kind="depends" checked><span class="sw e-depends"></span> depends (FastAPI Depends)</label>
+        <label><input type="checkbox" data-kind="instantiates" checked><span class="sw e-instantiates"></span> instantiates</label>
+        <label><input type="checkbox" data-kind="inherits" checked><span class="sw e-inherits"></span> inherits</label>
+        <label><input type="checkbox" data-kind="includes_router" checked><span class="sw e-includes_router"></span> includes_router</label>
+        <label><input type="checkbox" data-kind="routes" checked><span class="sw e-routes"></span> routes (router module → handler)</label>
+        <label><input type="checkbox" data-kind="references" checked><span class="sw e-references"></span> references (callback / passed as value)</label>
+        <label><input type="checkbox" data-kind="implements" checked><span class="sw e-implements"></span> implements (interface → impl)</label>
+        <div class="menu-title">Nodes</div>
+        <label><input type="checkbox" id="opt-hide-modules"> hide module-level nodes</label>
+        <label><input type="checkbox" id="opt-externals"> show unresolved calls of focus</label>
+      </div>
+    </div>
+    <div id="live" class="live off" title="Live update status"><span class="dot"></span><span class="txt">offline</span></div>
+  </div>
+</header>
+
+<div id="main">
+  <aside id="sidebar">
+    <div class="search-wrap">
+      <input id="search" type="search" placeholder="Search functions, classes, routes…  ( / )" autocomplete="off" spellcheck="false">
+      <div id="search-results" class="results hidden"></div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="entry">Entrypoints <span id="ep-count" class="count"></span></button>
+      <button class="tab" data-tab="tree">Modules <span id="mod-count" class="count"></span></button>
+    </div>
+    <input id="list-filter" class="filter" type="search" placeholder="Filter…" autocomplete="off" spellcheck="false">
+    <div id="tab-entry" class="tabpane"></div>
+    <div id="tab-tree" class="tabpane hidden"></div>
+    <div id="sidebar-foot" class="sidebar-foot"></div>
+  </aside>
+
+  <section id="canvas">
+    <div id="world">
+      <svg id="edges" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" class="m-norm"/></marker>
+          <marker id="arrow-hl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" class="m-hl"/></marker>
+          <marker id="arrow-out" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" class="m-out"/></marker>
+        </defs>
+        <g id="edge-layer"></g>
+      </svg>
+      <div id="nodes"></div>
+    </div>
+    <div id="empty" class="empty">
+      <div class="empty-card">
+        <div class="empty-title">Pick a starting point</div>
+        <p id="empty-nopy" class="hidden">No Python files found in <b id="empty-root"></b>. The map fills in as soon as <code>.py</code> files appear.</p>
+        <p id="empty-help">Choose an <b>entrypoint</b> or a module on the left, or press <kbd>/</kbd> to search.<br>
+          The diagram flows <b>left → right</b>: callers on the left, the focused node in the middle, what it calls on the right.</p>
+        <div id="empty-picks" class="empty-picks"></div>
+        <div class="hints">
+          <span><kbd>Click</kbd> select</span><span><kbd>Double-click</kbd> focus</span>
+          <span><kbd>Ctrl</kbd>+<kbd>Click</kbd> open in PyCharm</span><span><kbd>▸</kbd> expand in place</span>
+        </div>
+      </div>
+    </div>
+    <div id="progress" class="progress hidden" role="status" aria-live="polite">
+      <div class="empty-card progress-card">
+        <div class="spin"></div>
+        <div id="progress-title" class="empty-title">Building the call graph…</div>
+        <p id="progress-msg"></p>
+        <div class="pbar"><div id="progress-bar" class="pbar-fill"></div></div>
+        <p id="progress-hint" class="progress-hint">The map opens by itself when the analysis is done.</p>
+      </div>
+    </div>
+    <div id="banner" class="banner hidden"></div>
+    <div id="busy" class="busy hidden">laying out…</div>
+    <div class="canvas-tools">
+      <button id="z-out" class="icon-btn" title="Zoom out (-)">−</button>
+      <span id="z-val" class="zval">100%</span>
+      <button id="z-in" class="icon-btn" title="Zoom in (+)">+</button>
+      <button id="z-fit" class="icon-btn wide" title="Fit to screen (F)">Fit</button>
+      <button id="z-focus" class="icon-btn wide" title="Center on focus (C)">Center</button>
+    </div>
+    <div class="legend">
+      <span class="lg k-http">http</span><span class="lg k-celery_task">task</span><span class="lg k-entry">entry</span>
+      <span class="lg k-class">class</span><span class="lg k-method">method</span><span class="lg k-function">function</span><span class="lg k-module">module</span>
+      <span class="lg-sep"></span>
+      <span class="lge"><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" class="lg-calls"/></svg>calls</span>
+      <span class="lge"><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" class="lg-depends"/></svg>depends</span>
+      <span class="lge"><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" class="lg-inst"/></svg>instantiates / inherits</span>
+      <span class="lge"><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" class="lg-refs"/></svg>callback</span>
+      <span class="lge"><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" class="lg-impl"/></svg>implements</span>
+    </div>
+    <div id="stats" class="stats"></div>
+  </section>
+
+  <aside id="details" class="collapsed">
+    <div class="details-head">
+      <span>Details</span>
+      <button id="details-close" class="icon-btn" title="Close">×</button>
+    </div>
+    <div id="details-body" class="details-body"></div>
+  </aside>
+</div>
+
+<div id="path-pop" class="pop hidden">
+  <div class="pop-title">Find call path</div>
+  <label>From<input id="path-from" type="search" autocomplete="off" spellcheck="false" placeholder="search…"></label>
+  <div id="path-from-res" class="results mini hidden"></div>
+  <label>To<input id="path-to" type="search" autocomplete="off" spellcheck="false" placeholder="search…"></label>
+  <div id="path-to-res" class="results mini hidden"></div>
+  <div class="pop-actions">
+    <button id="path-swap" class="tbtn">⇄ Swap</button>
+    <span class="spacer"></span>
+    <button id="path-cancel" class="tbtn">Cancel</button>
+    <button id="path-go" class="tbtn primary">Find</button>
+  </div>
+</div>
+
+<div id="tooltip" class="tooltip hidden"></div>
+<div id="toasts"></div>
+
+<script src="vendor/elk.bundled.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

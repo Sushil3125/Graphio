@@ -1,0 +1,18 @@
+__pycache__/
+*.pyc
+.idea/
+*.iml
+.DS_Store
+# Gradle / plugin build outputs (see pycharm-plugin/.gitignore)
+pycharm-plugin/build/
+pycharm-plugin/build-*/
+pycharm-plugin/dist/
+pycharm-plugin/.gradle/
+pycharm-plugin/.kotlin/
+pycharm-plugin/.intellijPlatform/
+# benchmark graph of a private company project (regenerate with bench/corpora.sh)
+bench/golden/gis_api.json
+# signing keys / tokens never go in the repo
+*.pem
+*.key
+.env

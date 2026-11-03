@@ -1,0 +1,30 @@
+# systemd --user unit for codemap (always-on, auto-restart).
+# Install:   scripts/install-service.sh        (or copy to ~/.config/systemd/user/ manually)
+# Override settings in ~/.config/codemap/env, e.g.:
+#   CODEMAP_ROOT=            (optional default project for "/"; empty = project list.
+#                             Each PyCharm project gets its own map via /open?root=<dir>)
+#   CODEMAP_PORT=8765
+#   CODEMAP_PYTHON=/home/sushil/anaconda3/envs/gis_api/bin/python3
+#   CODEMAP_ARGS=--exclude migrations/*
+[Unit]
+Description=codemap - live Python call-flow explorer
+After=default.target
+
+[Service]
+Type=simple
+Environment=CODEMAP_HOME=%h/PycharmProjects/codemap
+Environment=CODEMAP_ROOT=
+Environment=CODEMAP_PORT=8765
+Environment=CODEMAP_HOST=127.0.0.1
+Environment=CODEMAP_PYTHON=/usr/bin/python3
+Environment=CODEMAP_ARGS=
+EnvironmentFile=-%h/.config/codemap/env
+Environment=PYTHONUNBUFFERED=1
+WorkingDirectory=%h/PycharmProjects/codemap
+ExecStart=/bin/sh -c 'cd "$CODEMAP_HOME" && exec "$CODEMAP_PYTHON" -m codemap $CODEMAP_ROOT --host "$CODEMAP_HOST" --port "$CODEMAP_PORT" $CODEMAP_ARGS'
+Restart=on-failure
+RestartSec=3
+Nice=5
+
+[Install]
+WantedBy=default.target

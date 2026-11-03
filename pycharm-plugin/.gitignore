@@ -1,0 +1,11 @@
+# build outputs: Gradle -> build/ (or build-<name>/ via -Pcodemap.buildDir); build-sh/ + dist/ are from the removed build.sh
+build/
+dist/
+# Gradle / IntelliJ Platform Gradle Plugin caches
+.gradle/
+.kotlin/
+.intellijPlatform/
+# the wrapper itself IS committed
+!gradle/wrapper/gradle-wrapper.jar
+build-sh/
+build-*/
